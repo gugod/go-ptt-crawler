@@ -4,6 +4,7 @@ import (
 	"os"
 	"log"
 	"regexp"
+	"strconv"
 	// "net/http"
 	// "io/ioutil"
 	"github.com/PuerkitoBio/goquery"
@@ -11,9 +12,13 @@ import (
 
 const PTT_URL = "https://www.ptt.cc"
 
-func harvest_board_indices(board_url string, board_name string)  {
-	log.Printf("url: %s", board_url)
-	log.Printf("name: %s", board_name)
+type BoardIndexPage struct {
+	page_number int
+	url string
+}
+
+func harvest_board_indices(board_url string, board_name string)  []BoardIndexPage {
+	var ret []BoardIndexPage
 
 	doc, err := goquery.NewDocument(board_url)
 	if err != nil { log.Fatal(err) }
@@ -24,10 +29,20 @@ func harvest_board_indices(board_url string, board_name string)  {
 		if !exists { return }
 		matched := re.FindStringSubmatch(href)
 		if len(matched) == 0 { return }
-		log.Printf("url: %s => %s", href, matched[1])
+		pn, err := strconv.Atoi(matched[1])
+		if err != nil { log.Fatal(err) }
+		ret = append( ret, BoardIndexPage{ pn, href } )
 	})
 
-	return;
+	if (ret[0].page_number > ret[1].page_number) {
+		ret[0],ret[1] = ret[1],ret[0]
+	}
+
+	for i := ret[0].page_number + 1; i < ret[1].page_number; i++ {
+		ret = append(ret, BoardIndexPage{i, "/bbs/" + board_name + "/index" + strconv.Itoa(i) + ".html" } )
+	}
+
+	return ret;
 }
 
 func main() {
@@ -39,6 +54,6 @@ func main() {
 
 	os.MkdirAll(output_board_dir, os.ModeDir | os.ModePerm);
 
-	harvest_board_indices( board_url, board_name );
-
+	board_indices := harvest_board_indices( board_url, board_name );
+	log.Print(board_indices);
 }
