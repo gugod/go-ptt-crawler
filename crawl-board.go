@@ -2,11 +2,11 @@ package main
 
 import (
 	"os"
+	"io"
 	"log"
 	"regexp"
 	"strconv"
-	// "net/http"
-	// "io/ioutil"
+	"net/http"
 	"github.com/PuerkitoBio/goquery"
 )
 
@@ -14,6 +14,11 @@ const PTT_URL = "https://www.ptt.cc"
 
 type BoardIndexPage struct {
 	page_number int
+	url string
+}
+
+type ArticlePage struct {
+	id  string
 	url string
 }
 
@@ -45,6 +50,45 @@ func harvest_board_indices(board_url string, board_name string)  []BoardIndexPag
 	return ret;
 }
 
+func harvest_articles(url string, board_name string) []ArticlePage {
+	var ret []ArticlePage
+
+	doc, err := goquery.NewDocument(url)
+	if err != nil { log.Fatal(err) }
+
+	re := regexp.MustCompile("/(M\\.[0-9]+\\.A\\.[A-Z0-9]{3})\\.html")
+	doc.Find("a[href*='/bbs/" + board_name + "/']").Each(func (_ int, s *goquery.Selection) {
+		href, exists := s.Attr("href")
+		if !exists { return }
+		matched := re.FindStringSubmatch(href)
+		if len(matched) == 0 { return }
+		ret = append(ret, ArticlePage{ matched[1], href })
+	})
+
+	return ret
+}
+
+func download_articles(articles []ArticlePage, output_board_dir string)  {
+	for _, article := range articles {
+		output_file := output_board_dir + "/" + article.id + ".html"
+
+		output, err := os.Create(output_file)
+		if err != nil { log.Fatal("Error while creating", output_file, "-", err)  }
+		defer output.Close()
+
+		res, err := http.Get( PTT_URL + article.url)
+		if err != nil { log.Fatal(err) }
+		defer res.Body.Close()
+
+		_, err = io.Copy(output, res.Body)
+		if err != nil {
+			log.Fatal("Error while downloading", article.url, "-", err)
+		}
+		log.Println(output_file)
+	}
+
+}
+
 func main() {
 	board_name := os.Args[1]
 	output_dir := os.Args[2]
@@ -52,8 +96,11 @@ func main() {
 	board_url := PTT_URL + "/bbs/" + board_name + "/index.html";
 	output_board_dir := output_dir + "/" + board_name;
 
-	os.MkdirAll(output_board_dir, os.ModeDir | os.ModePerm);
+	os.MkdirAll(output_board_dir, os.ModeDir | os.ModePerm)
 
-	board_indices := harvest_board_indices( board_url, board_name );
-	log.Print(board_indices);
+	board_indices := harvest_board_indices( board_url, board_name )
+	for _,board := range board_indices {
+		articles := harvest_articles( PTT_URL + board.url, board_name )
+		download_articles( articles, output_board_dir )
+	}
 }
