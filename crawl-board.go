@@ -22,6 +22,13 @@ type ArticlePage struct {
 	url string
 }
 
+// ptt_get ...
+func ptt_get(url string) *http.Response {
+	res, err := http.Get( url)
+	if err != nil { log.Fatal(err) }
+	return res;
+}
+
 func harvest_board_indices(board_url string, board_name string)  []BoardIndexPage {
 	var ret []BoardIndexPage
 
@@ -76,8 +83,7 @@ func download_articles(articles []ArticlePage, output_board_dir string)  {
 		if err != nil { log.Fatal("Error while creating", output_file, "-", err)  }
 		defer output.Close()
 
-		res, err := http.Get( PTT_URL + article.url)
-		if err != nil { log.Fatal(err) }
+		res := ptt_get(PTT_URL + article.url)
 		defer res.Body.Close()
 
 		_, err = io.Copy(output, res.Body)
