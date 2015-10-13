@@ -24,7 +24,9 @@ type ArticlePage struct {
 
 // ptt_get ...
 func ptt_get(url string) *http.Response {
-	res, err := http.Get( url)
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Set("Cookie", "over18=1")
+	res, err := http.DefaultClient.Do(req)
 	if err != nil { log.Fatal(err) }
 	return res;
 }
@@ -32,7 +34,7 @@ func ptt_get(url string) *http.Response {
 func harvest_board_indices(board_url string, board_name string)  []BoardIndexPage {
 	var ret []BoardIndexPage
 
-	doc, err := goquery.NewDocument(board_url)
+	doc, err := goquery.NewDocumentFromResponse( ptt_get(board_url) )
 	if err != nil { log.Fatal(err) }
 
 	re := regexp.MustCompile("/bbs/"+board_name+"/index([0-9]+)\\.html")
@@ -60,7 +62,7 @@ func harvest_board_indices(board_url string, board_name string)  []BoardIndexPag
 func harvest_articles(url string, board_name string) []ArticlePage {
 	var ret []ArticlePage
 
-	doc, err := goquery.NewDocument(url)
+	doc, err := goquery.NewDocumentFromResponse( ptt_get(url) )
 	if err != nil { log.Fatal(err) }
 
 	re := regexp.MustCompile("/(M\\.[0-9]+\\.A\\.[A-Z0-9]{3})\\.html")
