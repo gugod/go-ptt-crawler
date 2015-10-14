@@ -14,7 +14,7 @@ type PushLine struct {
 	Tag        string `json:"tag"`
 	UserId     string `json:"userid"`
 	Content    string `json:"content"`
-	IpDateTime string `json:"ipdatetime"`	
+	IpDateTime string `json:"ipdatetime"`
 }
 
 type MetaLine []string
@@ -25,26 +25,19 @@ type PttArticle struct {
 	Push []PushLine `json:"push"`
 }
 
-func visit(path string, f os.FileInfo, err error) error {
-	var output_path string
+func convert_article_html(path string)  PttArticle {
 	var e error
 	var fr *os.File
-	var fw *os.File
 	var doc *goquery.Document
 	var body string
 	var pushes []PushLine
 	var meta []MetaLine
 
-	if ! strings.HasSuffix(path, ".html") { return nil }
-
 	if fr, e = os.Open(path); e != nil {
-		log.Fatal(err)
-		return nil
+		log.Fatal(e)
 	}
-
 	if doc, e = goquery.NewDocumentFromReader(fr); e != nil {
-		log.Fatal(err)
-		return nil
+		log.Fatal(e)
 	}
 
 	main_content_dom := doc.Find("#main-content")
@@ -66,12 +59,22 @@ func visit(path string, f os.FileInfo, err error) error {
 
 	body = doc.Find("#main-content").Text()
 
-	var ptt_article = PttArticle{Body: body, Meta: meta, Push: pushes}
-	
+	return PttArticle{Body: body, Meta: meta, Push: pushes}
+}
+
+func visit(path string, f os.FileInfo, err error) error {
+	var output_path string
+	var e error
+	var fw *os.File
+
+	if ! strings.HasSuffix(path, ".html") { return nil }
+
+	ptt_article := convert_article_html(path)
+
 	var b []byte
 	if b, e = json.MarshalIndent(ptt_article, "", "   "); e != nil {
-		log.Fatal(err)
-		return nil		
+		log.Fatal(e)
+		return nil
 	}
 
 	output_path = strings.TrimSuffix(path, ".html") + ".json"
@@ -82,7 +85,7 @@ func visit(path string, f os.FileInfo, err error) error {
 	log.Printf("%s", output_path)
 	fw.Write(b)
 	return nil
-} 
+}
 
 func main() {
 	ptt_dir := os.Args[1]
