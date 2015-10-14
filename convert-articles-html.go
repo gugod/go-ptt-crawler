@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"log"
+	"sync"
 	"strings"
 	"encoding/json"
 	"path/filepath"
@@ -62,35 +63,52 @@ func convert_article_html(path string)  PttArticle {
 	return PttArticle{Body: body, Meta: meta, Push: pushes}
 }
 
-func visit(path string, f os.FileInfo, err error) error {
-	var output_path string
+func convert_then_save(path string) {
 	var e error
-	var fw *os.File
-
-	if ! strings.HasSuffix(path, ".html") { return nil }
-
-	ptt_article := convert_article_html(path)
-
 	var b []byte
-	if b, e = json.MarshalIndent(ptt_article, "", "   "); e != nil {
-		log.Fatal(e)
-		return nil
-	}
-
-	output_path = strings.TrimSuffix(path, ".html") + ".json"
+	var fw *os.File
+	output_path := strings.TrimSuffix(path, ".html") + ".json"
 	if fw, e = os.Create(output_path); e != nil {
 		log.Fatal(e)
-		return nil
 	}
-	log.Printf("%s", output_path)
+
+	ptt_article := convert_article_html(path)
+	if b, e = json.MarshalIndent(ptt_article, "", "   "); e != nil {
+		log.Fatal(e)
+	}
 	fw.Write(b)
-	return nil
+	fw.Close()
+	log.Printf("==> %s", output_path)
 }
 
 func main() {
 	ptt_dir := os.Args[1]
-
 	log.Printf("arg: %s", ptt_dir)
-	err := filepath.Walk(ptt_dir, visit)
+
+	var wg sync.WaitGroup
+
+	var i = 0
+	err := filepath.Walk(ptt_dir, func (path string, f os.FileInfo, err error) error {
+		if ! strings.HasSuffix(path, ".html") { return nil }
+		
+		wg.Add(1)
+		go func(p string) {
+			defer wg.Done()
+			convert_then_save(p)
+		}(path)
+		
+		i = i + 1
+		if i == 8 {
+			wg.Wait()
+			i = 0
+		}
+		return nil
+	})
 	log.Printf("filepath.Walk() returned %v\n", err)
+
+	if i > 0 {
+		wg.Wait()
+		i = 0
+	}
+
 }
