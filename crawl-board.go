@@ -100,6 +100,10 @@ func download_articles(articles []ArticlePage, output_board_dir string)  {
 }
 
 func main() {
+	if len(os.Args) != 3 {
+		log.Fatal("Usage: crawl-board BOARD_NAME OUTPUT_DIR")
+	}
+
 	board_name := os.Args[1]
 	output_dir := os.Args[2]
 
