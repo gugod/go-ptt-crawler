@@ -94,6 +94,8 @@ func download_articles(articles []ArticlePage, output_board_dir string)  {
 				log.Fatal("Error while downloading", article.url, "-", err)
 			}
 			log.Println(output_file)
+		} else {
+			log.Println("SKIP:", output_file, "exists.");
 		}
 	}
 
