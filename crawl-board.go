@@ -81,18 +81,20 @@ func download_articles(articles []ArticlePage, output_board_dir string)  {
 	for _, article := range articles {
 		output_file := output_board_dir + "/" + article.id + ".html"
 
-		output, err := os.Create(output_file)
-		if err != nil { log.Fatal("Error while creating", output_file, "-", err)  }
-		defer output.Close()
+		if _, err := os.Stat(output_file); os.IsNotExist(err) {
+			output, err := os.Create(output_file)
+			if err != nil { log.Fatal("Error while creating", output_file, "-", err)  }
+			defer output.Close()
 
-		res := ptt_get(PTT_URL + article.url)
-		defer res.Body.Close()
+			res := ptt_get(PTT_URL + article.url)
+			defer res.Body.Close()
 
-		_, err = io.Copy(output, res.Body)
-		if err != nil {
-			log.Fatal("Error while downloading", article.url, "-", err)
+			_, err = io.Copy(output, res.Body)
+			if err != nil {
+				log.Fatal("Error while downloading", article.url, "-", err)
+			}
+			log.Println(output_file)
 		}
-		log.Println(output_file)
 	}
 
 }
